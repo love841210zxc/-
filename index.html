@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BIGBANG應援小物【穿戴甲】領取系統</title>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding: 20px; background: #121212; color: #fff; }
+        h2 { color: #f39c12; }
+        #reader { width: 100%; max-width: 400px; margin: auto; border-radius: 12px; overflow: hidden; }
+        #result { 
+            margin-top: 20px; 
+            font-size: 1.1rem; 
+            font-weight: bold; 
+            padding: 20px; 
+            border-radius: 12px; 
+            max-width: 400px; 
+            margin-left: auto; 
+            margin-right: auto;
+            white-space: pre-line; /* 支援換行符號 */
+        }
+        .success { background: #1e4620; color: #75fb4c; border: 2px solid #2ecc71; }
+        .warning { background: #5c4000; color: #f1c40f; border: 2px solid #f39c12; }
+        .error { background: #511; color: #ff6b6b; border: 2px solid #e74c3c; }
+        .default { background: #222; color: #aaa; }
+    </style>
+</head>
+<body>
+
+    <h2>👑 BIGBANG 應援小物領取處</h2>
+    <div id="reader"></div>
+    <div id="result" class="default">請對準參與者的 QR Code 進行掃描</div>
+
+    <script>
+        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwHbQknoLvQd9qhLUovGiwdDS9O4VL5y69qQlGqiG4tFOQy6C6nP-AIkqIi95A0xNWb/exec"; // 替換成你部署好的 Apps Script 網址
+
+        function onScanSuccess(decodedText, decodedResult) {
+            // 暫停掃描，避免連續觸發
+            html5QrCode.pause();
+            
+            const resDiv = document.getElementById('result');
+            resDiv.innerText = "🔍 正在查詢 ID: " + decodedText + " ...";
+            resDiv.className = "default";
+
+            // 呼叫後端 API (傳入 B欄的 ID)
+            fetch(`${WEB_APP_URL}?action=check&id=${encodeURIComponent(decodedText)}`)
+                .then(response => response.json())
+                .then(data => {
+                    resDiv.innerText = data.message;
+                    resDiv.className = data.status; // success, warning, error
+                    
+                    // 3.5秒後自動恢復掃描下一個
+                    setTimeout(() => {
+                        resDiv.innerText = "請對準下一個 QR Code";
+                        resDiv.className = "default";
+                        html5QrCode.resume();
+                    }, 3500);
+                })
+                .catch(err => {
+                    console.error(err);
+                    resDiv.innerText = "❌ 網路連線錯誤，請重試";
+                    resDiv.className = "error";
+                    setTimeout(() => html5QrCode.resume(), 3000);
+                });
+        }
+
+        const html5QrCode = new Html5Qrcode("reader");
+        html5QrCode.start(
+            { facingMode: "environment" }, // 使用手機後鏡頭
+            { fps: 10, qrbox: { width: 250, height: 250 } },
+            onScanSuccess
+        ).catch(err => {
+            alert("無法開啟相機權限，請確認是否使用 HTTPS 網址或授權相機。");
+        });
+    </script>
+</body>
+</html>
