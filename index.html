@@ -1,98 +1,208 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-Hant">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BIGBANG 應援物領取系統</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- QR Code 掃描套件 -->
-    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>領取登記</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<style>
+  :root{--bg:#f4f5f7;--card:#fff;--text:#1f2430;--sub:#6b7280;--main:#2563eb;--ok:#16a34a;--warn:#d97706;--bad:#dc2626;--line:#e5e7eb}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text);padding-bottom:70px}
+  header{position:sticky;top:0;background:var(--main);color:#fff;padding:14px 16px;font-weight:700;font-size:18px;z-index:5}
+  .page{display:none;padding:12px}.page.active{display:block}
+  nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:#fff;border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+  nav button{flex:1;padding:14px 0;border:0;background:none;font-size:15px;color:var(--sub)}
+  nav button.active{color:var(--main);font-weight:700}
+  #reader{width:100%;border-radius:12px;overflow:hidden;background:#000;min-height:260px}
+  .card{background:var(--card);border-radius:12px;padding:14px;margin-top:12px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  .row{display:flex;justify-content:space-between;padding:4px 0;font-size:15px}.row span:first-child{color:var(--sub)}
+  .btn{display:block;width:100%;padding:14px;border:0;border-radius:10px;font-size:17px;font-weight:700;color:#fff;background:var(--ok);margin-top:10px}
+  .btn.gray{background:#9ca3af}.btn.red{background:var(--bad)}
+  .banner{padding:10px 12px;border-radius:10px;margin-top:12px;font-weight:600}
+  .banner.ok{background:#dcfce7;color:#166534}.banner.warn{background:#fef3c7;color:#92400e}.banner.bad{background:#fee2e2;color:#991b1b}
+  .stats{display:flex;gap:8px}.stat{flex:1;background:#fff;border-radius:12px;padding:10px;text-align:center}
+  .stat b{display:block;font-size:24px}
+  .tabs{display:flex;margin:12px 0 8px;background:#e5e7eb;border-radius:10px;padding:3px}
+  .tabs button{flex:1;border:0;background:none;padding:8px;border-radius:8px;font-size:15px}
+  .tabs button.active{background:#fff;font-weight:700}
+  input[type=search]{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;font-size:16px}
+  .item{background:#fff;border-radius:10px;padding:10px 12px;margin-top:8px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .item small{color:var(--sub);display:block;margin-top:2px}
+  .item button{border:1px solid var(--ok);color:var(--ok);background:#fff;border-radius:8px;padding:6px 10px;font-size:14px}
+  .item button.u{border-color:#9ca3af;color:#6b7280}
+  .muted{color:var(--sub);text-align:center;padding:16px}
+  #manual{display:flex;gap:8px;margin-top:12px}#manual input{flex:1;padding:10px;border:1px solid var(--line);border-radius:10px;font-size:16px}
+  #manual button{padding:0 16px;border:0;border-radius:10px;background:var(--main);color:#fff;font-size:15px}
+</style>
 </head>
-<body class="bg-gray-100 min-h-screen p-4 flex flex-col justify-center items-center">
-    <div class="max-w-md w-full bg-white rounded-2xl shadow-xl overflow-hidden p-6">
-        <h1 class="text-2xl font-bold text-center text-gray-800 mb-2">🎁 領取掃描系統</h1>
-        <p class="text-center text-gray-500 text-sm mb-6">請對準 QR Code 進行掃描</p>
+<body>
+<header>🎁 領取登記</header>
 
-        <!-- QR Code 掃描器容器 -->
-        <div class="mb-4 overflow-hidden rounded-lg border-2 border-dashed border-gray-300">
-            <div id="reader" style="width: 100%;"></div>
-        </div>
+<!-- 掃描頁 -->
+<section id="p-scan" class="page active">
+  <div id="reader"></div>
+  <div id="manual"><input id="manualCode" placeholder="掃不到?手動輸入編號 BB20TH-01"><button onclick="lookup(manualCode.value)">查詢</button></div>
+  <div id="result"></div>
+</section>
 
-        <!-- 狀態與結果顯示 -->
-        <div id="result" class="mt-4 p-4 bg-gray-50 border rounded-xl text-center text-gray-700 min-h-[90px] flex flex-col justify-center items-center">
-            <span class="text-gray-400">等待掃描...</span>
-        </div>
-    </div>
+<!-- 清單頁 -->
+<section id="p-list" class="page">
+  <div class="stats">
+    <div class="stat"><b id="sAll">-</b>總數</div>
+    <div class="stat"><b id="sDone" style="color:var(--ok)">-</b>已領取</div>
+    <div class="stat"><b id="sTodo" style="color:var(--warn)">-</b>未領取</div>
+  </div>
+  <div class="tabs"><button id="tTodo" class="active" onclick="setTab('todo')">未領取</button><button id="tDone" onclick="setTab('done')">已領取</button></div>
+  <input type="search" id="q" placeholder="搜尋編號 / ID / 姓名 / 品項" oninput="renderList()">
+  <div id="list"></div>
+  <button class="btn gray" onclick="loadList()">重新整理</button>
+</section>
 
-    <script>
-        // 請替換成你的 Google Apps Script 網址
-        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwHbQknoLvQd9qhLUovGiwdDS9O4VL5y69qQlGqiG4tFOQy6C6nP-AIkqIi95A0xNWb/exec";
+<nav>
+  <button id="nScan" class="active" onclick="showPage('scan')">📷 掃描領取</button>
+  <button id="nList" onclick="showPage('list')">📋 領取清單</button>
+</nav>
 
-        let isScanning = true;
+<script>
+// ====== 設定 ======
+const API = 'https://script.google.com/macros/s/AKfycbwHbQknoLvQd9qhLUovGiwdDS9O4VL5y69qQlGqiG4tFOQy6C6nP-AIkqIi95A0xNWb/exec';
+const TOKEN = 'love841210zxc'; // 與 Code.gs 相同
+// ==================
 
-        function onScanSuccess(decodedText, decodedResult) {
-            if (!isScanning) return;
-            isScanning = false; // 暫停接收，避免連掃
+let items = [], tab = 'todo', scanner = null, busy = false, lastText = '', lastAt = 0;
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-            const resultDiv = document.getElementById('result');
-            resultDiv.innerHTML = `<span class="text-blue-600 font-bold animate-pulse">⏳ 正在查詢與記錄中...<br>代碼: ${decodedText}</span>`;
+async function api(params, body) {
+  try {
+    const res = body
+      ? await fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ token: TOKEN, ...body }) })
+      : await fetch(API + '?' + new URLSearchParams({ token: TOKEN, ...params }));
+    return await res.json();
+  } catch (e) { return { ok: false, error: '網路連線失敗' }; }
+}
 
-            // 傳送資料到 Google 試算表
-            fetch(`${WEB_APP_URL}?code=${encodeURIComponent(decodedText)}`, {
-        method: "GET"
-    })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === "success") {
-                    resultDiv.innerHTML = `
-                        <div class="bg-green-50 border border-green-200 p-3 rounded-lg w-full text-left">
-                            <div class="text-green-700 font-bold text-lg mb-1">✅ 領取成功！</div>
-                            <div class="text-sm text-gray-600">姓名：<span class="font-semibold text-gray-800">${data.name}</span></div>
-                            <div class="text-sm text-gray-600">品項：<span class="font-semibold text-gray-800">${data.item}</span></div>
-                            <div class="text-sm text-gray-600">時間：<span class="font-semibold text-gray-800">${data.time}</span></div>
-                        </div>
-                    `;
-                } else if (data.status === "warning") {
-                    resultDiv.innerHTML = `
-                        <div class="bg-yellow-50 border border-yellow-200 p-3 rounded-lg w-full text-center">
-                            <div class="text-yellow-700 font-bold">⚠️ 注意</div>
-                            <div class="text-sm text-yellow-800 mt-1">${data.message}</div>
-                            <div class="text-xs text-gray-500 mt-1">代碼: ${decodedText}</div>
-                        </div>
-                    `;
-                } else {
-                    resultDiv.innerHTML = `
-                        <div class="bg-red-50 border border-red-200 p-3 rounded-lg w-full text-center">
-                            <div class="text-red-700 font-bold">❌ 失敗</div>
-                            <div class="text-sm text-red-800 mt-1">${data.message}</div>
-                        </div>
-                    `;
-                }
+/* ---------- 頁面切換 ---------- */
+function showPage(p) {
+  ['scan', 'list'].forEach(k => {
+    $('p-' + k).classList.toggle('active', k === p);
+    $('n' + (k === 'scan' ? 'Scan' : 'List')).classList.toggle('active', k === p);
+  });
+  if (p === 'scan') startScan(); else { stopScan(); loadList(); }
+}
 
-                // 4秒後恢復掃描
-                setTimeout(() => {
-                    isScanning = true;
-                }, 4000);
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                resultDiv.innerHTML = `<span class="text-red-600 font-bold">❌ 網路連線錯誤，請重試</span>`;
-                setTimeout(() => {
-                    isScanning = true;
-                }, 3000);
-            });
-        }
+/* ---------- 掃描 ---------- */
+async function startScan() {
+  if (scanner) return;
+  scanner = new Html5Qrcode('reader');
+  try {
+    await scanner.start({ facingMode: 'environment' },
+      { fps: 10, qrbox: { width: 240, height: 240 } }, onScan, () => {});
+  } catch (e) {
+    scanner = null;
+    $('reader').innerHTML = '<div class="muted" style="color:#fff">無法開啟相機,請允許相機權限(需 https),或使用下方手動輸入</div>';
+  }
+}
+async function stopScan() {
+  if (!scanner) return;
+  try { await scanner.stop(); scanner.clear(); } catch (e) {}
+  scanner = null;
+}
+function onScan(text) {
+  const now = Date.now();
+  if (busy || (text === lastText && now - lastAt < 3000)) return;
+  lastText = text; lastAt = now;
+  lookup(text);
+}
+function extractCode(text) {
+  const m = String(text).match(/BB20TH-\d+/i);
+  return (m ? m[0] : String(text)).trim().toUpperCase();
+}
 
-        const html5QrCode = new Html5Qrcode("reader");
-        html5QrCode.start(
-            { facingMode: "environment" }, // 使用後置鏡頭
-            { fps: 10, qrbox: { width: 220, height: 220 } },
-            onScanSuccess
-        ).catch(err => {
-            console.error("無法啟動相機", err);
-            document.getElementById('result').innerHTML = `<span class="text-red-500 text-sm">無法啟動相機，請確認是否授權相機權限，或網頁是否處於 HTTPS 環境。</span>`;
-        });
-    </script>
+async function lookup(text) {
+  const code = extractCode(text);
+  if (!code) return;
+  busy = true;
+  if (navigator.vibrate) navigator.vibrate(60);
+  $('result').innerHTML = '<div class="muted">查詢中…</div>';
+  const r = await api({ action: 'get', code });
+  busy = false;
+  if (!r.ok) { $('result').innerHTML = `<div class="banner bad">${esc(r.error)}</div>`; return; }
+  renderResult(r.item);
+}
+
+function itemCard(it) {
+  return `<div class="card">
+    <div class="row"><span>編號</span><b>${esc(it.code)}</b></div>
+    <div class="row"><span>ID</span><span>${esc(it.id)}</span></div>
+    <div class="row"><span>姓名</span><span>${esc(it.name)}</span></div>
+    <div class="row"><span>品項</span><b>${esc(it.item)}</b></div>
+  </div>`;
+}
+function renderResult(it, msg) {
+  let html = '';
+  if (msg) html += `<div class="banner ok">${esc(msg)}</div>`;
+  if (it.status === '已領取') {
+    if (!msg) html += `<div class="banner warn">⚠️ 此編號已領取過<br>領取時間:${esc(it.time)}</div>`;
+    html += itemCard(it) + `<button class="btn red" onclick="undo('${esc(it.code)}')">取消領取(登記錯誤時)</button>`;
+  } else {
+    html += itemCard(it) + `<button class="btn" onclick="claim('${esc(it.code)}')">✅ 確認領取</button>`;
+  }
+  $('result').innerHTML = html;
+}
+
+async function claim(code) {
+  $('result').innerHTML = '<div class="muted">登記中…</div>';
+  const r = await api(null, { action: 'claim', code });
+  if (r.ok) renderResult(r.item, '登記成功!');
+  else if (r.duplicate) renderResult(r.item);
+  else $('result').innerHTML = `<div class="banner bad">${esc(r.error)}</div>`;
+}
+async function undo(code) {
+  if (!confirm('確定要取消 ' + code + ' 的領取紀錄?')) return;
+  const r = await api(null, { action: 'undo', code });
+  if (r.ok) renderResult(r.item); else alert(r.error);
+}
+
+/* ---------- 清單 ---------- */
+async function loadList() {
+  $('list').innerHTML = '<div class="muted">載入中…</div>';
+  const r = await api({ action: 'list' });
+  if (!r.ok) { $('list').innerHTML = `<div class="banner bad">${esc(r.error)}</div>`; return; }
+  items = r.items; renderList();
+}
+function setTab(t) {
+  tab = t;
+  $('tTodo').classList.toggle('active', t === 'todo');
+  $('tDone').classList.toggle('active', t === 'done');
+  renderList();
+}
+function renderList() {
+  const done = items.filter(i => i.status === '已領取');
+  $('sAll').textContent = items.length;
+  $('sDone').textContent = done.length;
+  $('sTodo').textContent = items.length - done.length;
+  const kw = $('q').value.trim().toLowerCase();
+  const rows = items.filter(i => (tab === 'done') === (i.status === '已領取'))
+    .filter(i => !kw || [i.code, i.id, i.name, i.item].join(' ').toLowerCase().includes(kw));
+  if (tab === 'done') rows.sort((a, b) => b.time.localeCompare(a.time));
+  $('list').innerHTML = rows.length ? rows.map(i => `
+    <div class="item">
+      <div><b>${esc(i.code)}</b> ${esc(i.name)}<small>${esc(i.id)} ・ ${esc(i.item)}${i.time ? ' ・ ' + esc(i.time) : ''}</small></div>
+      ${tab === 'todo'
+        ? `<button onclick="quick('claim','${esc(i.code)}')">領取</button>`
+        : `<button class="u" onclick="quick('undo','${esc(i.code)}')">取消</button>`}
+    </div>`).join('') : '<div class="muted">沒有資料</div>';
+}
+async function quick(action, code) {
+  if (!confirm((action === 'claim' ? '確認登記領取 ' : '取消領取 ') + code + '?')) return;
+  const r = await api(null, { action, code });
+  if (r.ok) { const i = items.findIndex(x => x.code === code); if (i > -1) items[i] = r.item; renderList(); }
+  else alert(r.error);
+}
+
+startScan();
+</script>
 </body>
 </html>
