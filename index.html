@@ -39,10 +39,9 @@
             resultDiv.innerHTML = `<span class="text-blue-600 font-bold animate-pulse">⏳ 正在查詢與記錄中...<br>代碼: ${decodedText}</span>`;
 
             // 傳送資料到 Google 試算表
-            fetch(WEB_APP_URL, {
-                method: "POST",
-                body: JSON.stringify({ code: decodedText }) // 傳送掃到的編號或ID
-            })
+            fetch(`${WEB_APP_URL}?code=${encodeURIComponent(decodedText)}`, {
+        method: "GET"
+    })
             .then(response => response.json())
             .then(data => {
                 if (data.status === "success") {
