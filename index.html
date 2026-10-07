@@ -70,9 +70,12 @@ const API = 'https://script.google.com/macros/s/AKfycbwHbQknoLvQd9qhLUovGiwdDS9O
 const TOKEN = 'love841210zxc'; // 與 Code.gs 相同
 // ==================
 
-let items = [], tab = 'todo', scanner = null, busy = false, lastText = '', lastAt = 0;
+let items = [], tab = 'todo', scanner = null, lastText = '', lastAt = 0, loaded = false, pending = 0;
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad = n => String(n).padStart(2, '0');
+const nowStr = () => { const d = new Date(); return `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`; };
+const find = code => items.find(i => i.code === code);
 
 async function api(params, body) {
   try {
@@ -83,14 +86,24 @@ async function api(params, body) {
   } catch (e) { return { ok: false, error: '網路連線失敗' }; }
 }
 
+/* ---------- 資料快取:開啟就載入,之後背景同步 ---------- */
+async function syncList(showLoading) {
+  if (showLoading) $('list').innerHTML = '<div class="muted">載入中…</div>';
+  const r = await api({ action: 'list' });
+  if (r.ok && pending === 0) { items = r.items; loaded = true; renderList(); }   // 有未完成的登記時不覆蓋,避免畫面跳回
+  else if (!r.ok && showLoading) $('list').innerHTML = `<div class="banner bad">${esc(r.error)}</div>`;
+}
+setInterval(() => { if (!document.hidden) syncList(false); }, 20000);
+
 /* ---------- 頁面切換 ---------- */
 function showPage(p) {
   ['scan', 'list'].forEach(k => {
     $('p-' + k).classList.toggle('active', k === p);
     $('n' + (k === 'scan' ? 'Scan' : 'List')).classList.toggle('active', k === p);
   });
-  if (p === 'scan') startScan(); else { stopScan(); loadList(); }
+  if (p === 'scan') startScan(); else { stopScan(); renderList(); syncList(!loaded); }
 }
+function loadList() { syncList(true); }
 
 /* ---------- 掃描 ---------- */
 async function startScan() {
@@ -98,7 +111,7 @@ async function startScan() {
   scanner = new Html5Qrcode('reader');
   try {
     await scanner.start({ facingMode: 'environment' },
-      { fps: 10, qrbox: { width: 240, height: 240 } }, onScan, () => {});
+      { fps: 15, qrbox: { width: 240, height: 240 }, disableFlip: true }, onScan, () => {});
   } catch (e) {
     scanner = null;
     $('reader').innerHTML = '<div class="muted" style="color:#fff">無法開啟相機,請允許相機權限(需 https),或使用下方手動輸入</div>';
@@ -111,7 +124,7 @@ async function stopScan() {
 }
 function onScan(text) {
   const now = Date.now();
-  if (busy || (text === lastText && now - lastAt < 3000)) return;
+  if (text === lastText && now - lastAt < 2000) return;
   lastText = text; lastAt = now;
   lookup(text);
 }
@@ -120,16 +133,17 @@ function extractCode(text) {
   return (m ? m[0] : String(text)).trim().toUpperCase();
 }
 
+// 先查本機快取(瞬間顯示);快取沒有才問伺服器
 async function lookup(text) {
   const code = extractCode(text);
   if (!code) return;
-  busy = true;
   if (navigator.vibrate) navigator.vibrate(60);
+  const local = find(code);
+  if (local) { renderResult(local); return; }
   $('result').innerHTML = '<div class="muted">查詢中…</div>';
   const r = await api({ action: 'get', code });
-  busy = false;
   if (!r.ok) { $('result').innerHTML = `<div class="banner bad">${esc(r.error)}</div>`; return; }
-  renderResult(r.item);
+  items.push(r.item); renderResult(r.item);
 }
 
 function itemCard(it) {
@@ -152,26 +166,34 @@ function renderResult(it, msg) {
   $('result').innerHTML = html;
 }
 
+/* ---------- 領取:樂觀更新,先顯示成功,背景送出 ---------- */
 async function claim(code) {
-  $('result').innerHTML = '<div class="muted">登記中…</div>';
+  const it = find(code); if (!it) return;
+  const backup = { ...it };
+  it.status = '已領取'; it.time = nowStr();
+  renderResult(it, '登記成功!');
+  pending++;
   const r = await api(null, { action: 'claim', code });
-  if (r.ok) renderResult(r.item, '登記成功!');
-  else if (r.duplicate) renderResult(r.item);
-  else $('result').innerHTML = `<div class="banner bad">${esc(r.error)}</div>`;
+  pending--;
+  if (r.ok) { Object.assign(it, r.item); }
+  else if (r.duplicate) { Object.assign(it, r.item); renderResult(it); }      // 別台剛好先領了
+  else { Object.assign(it, backup); $('result').innerHTML = `<div class="banner bad">❌ 登記失敗:${esc(r.error)}<br>請重新掃描再試一次</div>` + itemCard(it) + `<button class="btn" onclick="claim('${esc(code)}')">重試領取</button>`; }
+  renderList();
 }
 async function undo(code) {
   if (!confirm('確定要取消 ' + code + ' 的領取紀錄?')) return;
+  const it = find(code); if (!it) return;
+  const backup = { ...it };
+  it.status = '未領取'; it.time = '';
+  renderResult(it);
+  pending++;
   const r = await api(null, { action: 'undo', code });
-  if (r.ok) renderResult(r.item); else alert(r.error);
+  pending--;
+  if (r.ok) Object.assign(it, r.item); else { Object.assign(it, backup); renderResult(it); alert(r.error); }
+  renderList();
 }
 
 /* ---------- 清單 ---------- */
-async function loadList() {
-  $('list').innerHTML = '<div class="muted">載入中…</div>';
-  const r = await api({ action: 'list' });
-  if (!r.ok) { $('list').innerHTML = `<div class="banner bad">${esc(r.error)}</div>`; return; }
-  items = r.items; renderList();
-}
 function setTab(t) {
   tab = t;
   $('tTodo').classList.toggle('active', t === 'todo');
@@ -179,6 +201,7 @@ function setTab(t) {
   renderList();
 }
 function renderList() {
+  if (!loaded) return;
   const done = items.filter(i => i.status === '已領取');
   $('sAll').textContent = items.length;
   $('sDone').textContent = done.length;
@@ -197,11 +220,19 @@ function renderList() {
 }
 async function quick(action, code) {
   if (!confirm((action === 'claim' ? '確認登記領取 ' : '取消領取 ') + code + '?')) return;
+  const it = find(code); if (!it) return;
+  const backup = { ...it };
+  it.status = action === 'claim' ? '已領取' : '未領取';
+  it.time = action === 'claim' ? nowStr() : '';
+  renderList();
+  pending++;
   const r = await api(null, { action, code });
-  if (r.ok) { const i = items.findIndex(x => x.code === code); if (i > -1) items[i] = r.item; renderList(); }
-  else alert(r.error);
+  pending--;
+  if (r.ok || r.duplicate) Object.assign(it, r.item); else { Object.assign(it, backup); alert(r.error); }
+  renderList();
 }
 
+syncList(true);   // 一開網頁就先載入名單(同時也喚醒後端,避免第一次掃描卡住)
 startScan();
 </script>
 </body>
