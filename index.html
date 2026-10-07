@@ -4,68 +4,41 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>領取登記</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
 <style>
   :root{--bg:#f4f5f7;--card:#fff;--text:#1f2430;--sub:#6b7280;--main:#2563eb;--ok:#16a34a;--warn:#d97706;--bad:#dc2626;--line:#e5e7eb}
   *{box-sizing:border-box}
-  body{margin:0;font-family:-apple-system,"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text);padding-bottom:70px}
-  header{position:sticky;top:0;background:var(--main);color:#fff;padding:14px 16px;font-weight:700;font-size:18px;z-index:5}
-  .page{display:none;padding:12px}.page.active{display:block}
-  nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:#fff;border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
-  nav button{flex:1;padding:14px 0;border:0;background:none;font-size:15px;color:var(--sub)}
-  nav button.active{color:var(--main);font-weight:700}
-  #reader{position:relative;width:100%;height:300px;border-radius:12px;overflow:hidden;background:#000}
-  #video{width:100%;height:100%;object-fit:cover;display:block}
-  #reader .frame{position:absolute;inset:50% auto auto 50%;width:62%;aspect-ratio:1;transform:translate(-50%,-50%);border:3px solid rgba(255,255,255,.85);border-radius:16px;box-shadow:0 0 0 999px rgba(0,0,0,.35);pointer-events:none}
-  #camErr{color:#fff;text-align:center;padding:16px;position:absolute;inset:0;display:none;align-items:center;justify-content:center}
-  .card{background:var(--card);border-radius:12px;padding:14px;margin-top:12px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
-  .row{display:flex;justify-content:space-between;padding:4px 0;font-size:15px}.row span:first-child{color:var(--sub)}
-  .btn{display:block;width:100%;padding:14px;border:0;border-radius:10px;font-size:17px;font-weight:700;color:#fff;background:var(--ok);margin-top:10px}
-  .btn.gray{background:#9ca3af}.btn.red{background:var(--bad)}
-  .banner{padding:10px 12px;border-radius:10px;margin-top:12px;font-weight:600}
-  .banner.ok{background:#dcfce7;color:#166534}.banner.warn{background:#fef3c7;color:#92400e}.banner.bad{background:#fee2e2;color:#991b1b}
-  .stats{display:flex;gap:8px}.stat{flex:1;background:#fff;border-radius:12px;padding:10px;text-align:center}
-  .stat b{display:block;font-size:24px}
+  body{margin:0;font-family:-apple-system,"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text);padding:0 12px 24px}
+  header{position:sticky;top:0;margin:0 -12px;background:var(--main);color:#fff;padding:14px 16px;font-weight:700;font-size:18px;z-index:5;display:flex;justify-content:space-between;align-items:center}
+  header button{background:rgba(255,255,255,.2);color:#fff;border:0;border-radius:8px;padding:6px 12px;font-size:14px}
+  .stats{display:flex;gap:8px;margin-top:12px}.stat{flex:1;background:#fff;border-radius:12px;padding:10px;text-align:center;font-size:13px;color:var(--sub)}
+  .stat b{display:block;font-size:24px;color:var(--text)}
   .tabs{display:flex;margin:12px 0 8px;background:#e5e7eb;border-radius:10px;padding:3px}
-  .tabs button{flex:1;border:0;background:none;padding:8px;border-radius:8px;font-size:15px}
+  .tabs button{flex:1;border:0;background:none;padding:9px;border-radius:8px;font-size:15px}
   .tabs button.active{background:#fff;font-weight:700}
   input[type=search]{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;font-size:16px}
-  .item{background:#fff;border-radius:10px;padding:10px 12px;margin-top:8px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .item{background:#fff;border-radius:10px;padding:10px 12px;margin-top:8px;display:flex;justify-content:space-between;align-items:center;gap:10px}
   .item small{color:var(--sub);display:block;margin-top:2px}
-  .item button{border:1px solid var(--ok);color:var(--ok);background:#fff;border-radius:8px;padding:6px 10px;font-size:14px}
-  .item button.u{border-color:#9ca3af;color:#6b7280}
+  .item button{border:0;background:var(--ok);color:#fff;border-radius:8px;padding:10px 16px;font-size:16px;font-weight:700;flex-shrink:0}
+  .item button.u{background:#fff;border:1px solid #9ca3af;color:#6b7280;font-size:14px;font-weight:400;padding:8px 12px}
+  .item.busy{opacity:.55}
   .muted{color:var(--sub);text-align:center;padding:16px}
-  #manual{display:flex;gap:8px;margin-top:12px}#manual input{flex:1;padding:10px;border:1px solid var(--line);border-radius:10px;font-size:16px}
-  #manual button{padding:0 16px;border:0;border-radius:10px;background:var(--main);color:#fff;font-size:15px}
+  .banner{padding:10px 12px;border-radius:10px;margin-top:12px;font-weight:600;background:#fee2e2;color:#991b1b}
+  #toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translateX(-50%);background:rgba(31,36,48,.92);color:#fff;padding:10px 18px;border-radius:20px;font-size:15px;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90%;text-align:center}
+  #toast.show{opacity:1}
 </style>
 </head>
 <body>
-<header>🎁 領取登記</header>
+<header><span>🎁 領取登記</span><button onclick="syncList(true)">重新整理</button></header>
 
-<!-- 掃描頁 -->
-<section id="p-scan" class="page active">
-  <div id="reader"><video id="video" playsinline muted autoplay></video><div class="frame"></div><div id="camErr"></div></div>
-  <div id="manual"><input id="manualCode" placeholder="掃不到?手動輸入編號 BB20TH-01"><button onclick="lookup(manualCode.value)">查詢</button></div>
-  <div id="result"></div>
-</section>
-
-<!-- 清單頁 -->
-<section id="p-list" class="page">
-  <div class="stats">
-    <div class="stat"><b id="sAll">-</b>總數</div>
-    <div class="stat"><b id="sDone" style="color:var(--ok)">-</b>已領取</div>
-    <div class="stat"><b id="sTodo" style="color:var(--warn)">-</b>未領取</div>
-  </div>
-  <div class="tabs"><button id="tTodo" class="active" onclick="setTab('todo')">未領取</button><button id="tDone" onclick="setTab('done')">已領取</button></div>
-  <input type="search" id="q" placeholder="搜尋編號 / ID / 姓名 / 品項" oninput="renderList()">
-  <div id="list"></div>
-  <button class="btn gray" onclick="loadList()">重新整理</button>
-</section>
-
-<nav>
-  <button id="nScan" class="active" onclick="showPage('scan')">📷 掃描領取</button>
-  <button id="nList" onclick="showPage('list')">📋 領取清單</button>
-</nav>
+<div class="stats">
+  <div class="stat"><b id="sAll">-</b>總數</div>
+  <div class="stat"><b id="sDone" style="color:var(--ok)">-</b>已領取</div>
+  <div class="stat"><b id="sTodo" style="color:var(--warn)">-</b>未領取</div>
+</div>
+<div class="tabs"><button id="tTodo" class="active" onclick="setTab('todo')">未領取</button><button id="tDone" onclick="setTab('done')">已領取</button></div>
+<input type="search" id="q" placeholder="搜尋編號 / ID / 姓名 / 品項" oninput="renderList()">
+<div id="list"></div>
+<div id="toast"></div>
 
 <script>
 // ====== 設定 ======
@@ -73,12 +46,18 @@ const API = 'https://script.google.com/macros/s/AKfycbwHbQknoLvQd9qhLUovGiwdDS9O
 const TOKEN = 'love841210zxc'; // 與 Code.gs 相同
 // ==================
 
-let items = [], tab = 'todo', lastText = '', lastAt = 0, loaded = false, pending = 0;
+let items = [], tab = 'todo', loaded = false, pending = 0;
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const pad = n => String(n).padStart(2, '0');
 const nowStr = () => { const d = new Date(); return `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`; };
 const find = code => items.find(i => i.code === code);
+
+let toastTimer;
+function toast(msg) {
+  const t = $('toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 1800);
+}
 
 async function api(params, body) {
   try {
@@ -89,159 +68,23 @@ async function api(params, body) {
   } catch (e) { return { ok: false, error: '網路連線失敗' }; }
 }
 
-/* ---------- 資料快取:開啟就載入,之後背景同步 ---------- */
+// 載入 / 同步名單(有未完成的登記時不覆蓋,避免畫面跳回)
 async function syncList(showLoading) {
-  if (showLoading) $('list').innerHTML = '<div class="muted">載入中…</div>';
+  if (showLoading && !loaded) $('list').innerHTML = '<div class="muted">載入中…</div>';
   const r = await api({ action: 'list' });
-  if (r.ok && pending === 0) { items = r.items; loaded = true; renderList(); }   // 有未完成的登記時不覆蓋,避免畫面跳回
-  else if (!r.ok && showLoading) $('list').innerHTML = `<div class="banner bad">${esc(r.error)}</div>`;
+  if (r.ok) { if (pending === 0) { items = r.items; loaded = true; renderList(); } if (showLoading) toast('已更新'); }
+  else if (!loaded) $('list').innerHTML = `<div class="banner">${esc(r.error)}</div>`;
+  else if (showLoading) toast(r.error);
 }
-setInterval(() => { if (!document.hidden) syncList(false); }, 20000);
+setInterval(() => { if (!document.hidden) syncList(false); }, 15000);
 
-/* ---------- 頁面切換 ---------- */
-function showPage(p) {
-  ['scan', 'list'].forEach(k => {
-    $('p-' + k).classList.toggle('active', k === p);
-    $('n' + (k === 'scan' ? 'Scan' : 'List')).classList.toggle('active', k === p);
-  });
-  if (p === 'scan') startScan(); else { stopScan(); renderList(); syncList(!loaded); }
-}
-function loadList() { syncList(true); }
-
-/* ---------- 掃描(自製掃描迴圈:優先用瀏覽器內建 BarcodeDetector,否則 jsQR) ---------- */
-let stream = null, detector = null, scanning = false;
-const sCanvas = document.createElement('canvas');
-const sCtx = sCanvas.getContext('2d', { willReadFrequently: true });
-
-async function startScan() {
-  if (stream) return;
-  $('camErr').style.display = 'none';
-  try {
-    stream = await navigator.mediaDevices.getUserMedia({
-      audio: false,
-      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 }, advanced: [{ focusMode: 'continuous' }] }
-    });
-  } catch (e) {
-    stream = null;
-    $('camErr').textContent = '無法開啟相機,請允許相機權限(需 https),或使用下方手動輸入';
-    $('camErr').style.display = 'flex';
-    return;
-  }
-  const v = $('video');
-  v.srcObject = stream;
-  try { await v.play(); } catch (e) {}
-  if ('BarcodeDetector' in window) { try { detector = new BarcodeDetector({ formats: ['qr_code'] }); } catch (e) { detector = null; } }
-  requestAnimationFrame(tick);
-}
-function stopScan() {
-  if (!stream) return;
-  stream.getTracks().forEach(t => t.stop());
-  stream = null;
-  $('video').srcObject = null;
-}
-async function tick() {
-  if (!stream) return;
-  const v = $('video');
-  if (!scanning && v.readyState >= 2 && v.videoWidth) {
-    scanning = true;
-    try {
-      let text = null;
-      if (detector) {
-        try { const r = await detector.detect(v); if (r.length) text = r[0].rawValue; }
-        catch (e) { detector = null; }            // 此裝置不支援就改用 jsQR
-      } else {
-        const sc = Math.min(1, 640 / v.videoWidth);
-        const w = Math.round(v.videoWidth * sc), h = Math.round(v.videoHeight * sc);
-        if (sCanvas.width !== w) { sCanvas.width = w; sCanvas.height = h; }
-        sCtx.drawImage(v, 0, 0, w, h);
-        const img = sCtx.getImageData(0, 0, w, h);
-        const c = jsQR(img.data, w, h, { inversionAttempts: 'dontInvert' });
-        if (c) text = c.data;
-      }
-      if (text) onScan(text);
-    } catch (e) {}
-    scanning = false;
-  }
-  requestAnimationFrame(tick);
-}
-function onScan(text) {
-  const now = Date.now();
-  if (text === lastText && now - lastAt < 2000) return;
-  lastText = text; lastAt = now;
-  lookup(text);
-}
-function extractCode(text) {
-  const m = String(text).match(/BB20TH-\d+/i);
-  return (m ? m[0] : String(text)).trim().toUpperCase();
-}
-
-// 先查本機快取(瞬間顯示);快取沒有才問伺服器
-async function lookup(text) {
-  const code = extractCode(text);
-  if (!code) return;
-  if (navigator.vibrate) navigator.vibrate(60);
-  const local = find(code);
-  if (local) { renderResult(local); return; }
-  $('result').innerHTML = '<div class="muted">查詢中…</div>';
-  const r = await api({ action: 'get', code });
-  if (!r.ok) { $('result').innerHTML = `<div class="banner bad">${esc(r.error)}</div>`; return; }
-  items.push(r.item); renderResult(r.item);
-}
-
-function itemCard(it) {
-  return `<div class="card">
-    <div class="row"><span>編號</span><b>${esc(it.code)}</b></div>
-    <div class="row"><span>ID</span><span>${esc(it.id)}</span></div>
-    <div class="row"><span>姓名</span><span>${esc(it.name)}</span></div>
-    <div class="row"><span>品項</span><b>${esc(it.item)}</b></div>
-  </div>`;
-}
-function renderResult(it, msg) {
-  let html = '';
-  if (msg) html += `<div class="banner ok">${esc(msg)}</div>`;
-  if (it.status === '已領取') {
-    if (!msg) html += `<div class="banner warn">⚠️ 此編號已領取過<br>領取時間:${esc(it.time)}</div>`;
-    html += itemCard(it) + `<button class="btn red" onclick="undo('${esc(it.code)}')">取消領取(登記錯誤時)</button>`;
-  } else {
-    html += itemCard(it) + `<button class="btn" onclick="claim('${esc(it.code)}')">✅ 確認領取</button>`;
-  }
-  $('result').innerHTML = html;
-}
-
-/* ---------- 領取:樂觀更新,先顯示成功,背景送出 ---------- */
-async function claim(code) {
-  const it = find(code); if (!it) return;
-  const backup = { ...it };
-  it.status = '已領取'; it.time = nowStr();
-  renderResult(it, '登記成功!');
-  pending++;
-  const r = await api(null, { action: 'claim', code });
-  pending--;
-  if (r.ok) { Object.assign(it, r.item); }
-  else if (r.duplicate) { Object.assign(it, r.item); renderResult(it); }      // 別台剛好先領了
-  else { Object.assign(it, backup); $('result').innerHTML = `<div class="banner bad">❌ 登記失敗:${esc(r.error)}<br>請重新掃描再試一次</div>` + itemCard(it) + `<button class="btn" onclick="claim('${esc(code)}')">重試領取</button>`; }
-  renderList();
-}
-async function undo(code) {
-  if (!confirm('確定要取消 ' + code + ' 的領取紀錄?')) return;
-  const it = find(code); if (!it) return;
-  const backup = { ...it };
-  it.status = '未領取'; it.time = '';
-  renderResult(it);
-  pending++;
-  const r = await api(null, { action: 'undo', code });
-  pending--;
-  if (r.ok) Object.assign(it, r.item); else { Object.assign(it, backup); renderResult(it); alert(r.error); }
-  renderList();
-}
-
-/* ---------- 清單 ---------- */
 function setTab(t) {
   tab = t;
   $('tTodo').classList.toggle('active', t === 'todo');
   $('tDone').classList.toggle('active', t === 'done');
   renderList();
 }
+
 function renderList() {
   if (!loaded) return;
   const done = items.filter(i => i.status === '已領取');
@@ -256,26 +99,34 @@ function renderList() {
     <div class="item">
       <div><b>${esc(i.code)}</b> ${esc(i.name)}<small>${esc(i.id)} ・ ${esc(i.item)}${i.time ? ' ・ ' + esc(i.time) : ''}</small></div>
       ${tab === 'todo'
-        ? `<button onclick="quick('claim','${esc(i.code)}')">領取</button>`
-        : `<button class="u" onclick="quick('undo','${esc(i.code)}')">取消</button>`}
+        ? `<button onclick="act('claim','${esc(i.code)}')">領取</button>`
+        : `<button class="u" onclick="act('undo','${esc(i.code)}')">取消</button>`}
     </div>`).join('') : '<div class="muted">沒有資料</div>';
 }
-async function quick(action, code) {
-  if (!confirm((action === 'claim' ? '確認登記領取 ' : '取消領取 ') + code + '?')) return;
+
+// 按下領取:直接生效(不再跳確認),畫面先更新,背景送出;失敗會還原並提示
+async function act(action, code) {
   const it = find(code); if (!it) return;
+  if (action === 'undo' && !confirm('確定要取消 ' + code + ' ' + it.name + ' 的領取紀錄?')) return;
   const backup = { ...it };
   it.status = action === 'claim' ? '已領取' : '未領取';
   it.time = action === 'claim' ? nowStr() : '';
   renderList();
+  toast(action === 'claim' ? `✅ ${it.name || code} 已領取` : `已取消 ${it.name || code}`);
   pending++;
   const r = await api(null, { action, code });
   pending--;
-  if (r.ok || r.duplicate) Object.assign(it, r.item); else { Object.assign(it, backup); alert(r.error); }
+  if (r.ok || r.duplicate) {
+    Object.assign(it, r.item);
+    if (r.duplicate) toast('此編號已被領取過');
+  } else {
+    Object.assign(it, backup);
+    toast('❌ 失敗:' + r.error);
+  }
   renderList();
 }
 
-syncList(true);   // 一開網頁就先載入名單(同時也喚醒後端,避免第一次掃描卡住)
-startScan();
+syncList(true);
 </script>
 </body>
 </html>
